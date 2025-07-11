@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Votely{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{% if user.is_staff %}Admin Dashboard{% else %}Available Elections{% endif %}</h2>
+        {% if user.is_staff %}
+            <a href="{% url 'election_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create Election
+            </a>
+        {% endif %}
+    </div>
+
+    {% if elections %}
+        <div class="row">
+            {% for election in elections %}
+                <div class="col-md-6 mb-4">
+                    <div class="card election-card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center {% if not user.is_staff and election.id in user_votes %}bg-light{% endif %}">
+                            <h5 class="card-title mb-0">{{ election.title }}</h5>
+                            <div class="d-flex align-items-center">
+                                {% if not user.is_staff and election.id in user_votes %}
+                                    <span class="badge bg-success me-2">
+                                        <i class="fas fa-check-circle"></i> Voted
+                                    </span>
+                                {% endif %}
+                                <span class="badge election-status status-{{ election.status|lower }}">
+                                    {{ election.status }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">{{ election.description|truncatewords:30 }}</p>
+                            <div class="small text-muted mb-3">
+                                <div><i class="far fa-calendar-alt"></i> Start: {{ election.start_date|date:"M d, Y H:i" }}</div>
+                                <div><i class="far fa-calendar-check"></i> End: {{ election.end_date|date:"M d, Y H:i" }}</div>
+                                <div class="mt-2">
+                                    <i class="fas fa-users"></i> Candidates: {{ election.candidates.count }}
+                                    {% if user.is_staff %}
+                                        <span class="ms-3"><i class="fas fa-vote-yea"></i> Votes: {{ election.votes.count }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'election_detail' pk=election.pk %}" class="btn {% if not user.is_staff and election.id in user_votes %}btn-outline-success{% else %}btn-outline-primary{% endif %}">
+                                    {% if user.is_staff %}
+                                        <i class="fas fa-cog me-1"></i> Manage Election
+                                    {% else %}
+                                        {% if election.id in user_votes %}
+                                            <i class="fas fa-chart-bar me-1"></i> View Results
+                                        {% else %}
+                                            <i class="fas fa-vote-yea me-1"></i> Vote Now
+                                        {% endif %}
+                                    {% endif %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            {% if user.is_staff %}
+                <i class="fas fa-info-circle me-2"></i> No elections have been created yet.
+                <a href="{% url 'election_create' %}" class="alert-link">Create your first election</a>
+            {% else %}
+                <i class="fas fa-info-circle me-2"></i> No active elections available for voting at this time.
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

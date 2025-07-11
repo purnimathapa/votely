@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Results for {{ election.title }} - Votely{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">Results for {{ election.title }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container mb-4">
+                        <canvas id="resultsChart"></canvas>
+                    </div>
+                    <h5 class="mb-3">Detailed Results</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Candidate</th>
+                                    <th>Votes</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for candidate in candidates %}
+                                    <tr>
+                                        <td>{{ candidate.name }}</td>
+                                        <td>{{ candidate.vote_count }}</td>
+                                        <td>
+                                          {% if total_votes > 0 %}
+                                            {% widthratio candidate.vote_count total_votes 100 %}%
+                                          {% else %}
+                                            0%
+                                          {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartContainer = document.querySelector('.chart-container');
+    const resultsTable = document.querySelector('.table-responsive');
+    
+    // Show loading state
+    chartContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    
+    const fetchUrl = "{% url 'election_results' pk=election.pk %}?is_ajax=true";
+    console.log('Fetching URL:', fetchUrl);
+
+    fetch(fetchUrl, {
+        headers: {
+            // 'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        const ctx = document.getElementById('resultsChart').getContext('2d');
+        const chart = createBarChart(ctx, data.labels, data.votes, 'Vote Count');
+        document.getElementById('resultsChart').chart = chart;
+        
+        // Show table if it was hidden
+        if (resultsTable) {
+            resultsTable.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading election results:', error);
+        chartContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Error loading results: ${error.message}
+            </div>`;
+    });
+});
+</script>
+{% endblock %} 

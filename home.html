@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome to Votely{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center align-items-center min-vh-75">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">Welcome to Votely</h1>
+            <p class="lead mb-4">A secure and user-friendly online voting system for academic institutions.</p>
+            <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-4 gap-3">Login</a>
+                <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg px-4">Register</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-shield-alt"></i> Secure Voting</h5>
+                    <p class="card-text">Our platform ensures secure and tamper-proof voting with advanced encryption and authentication.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-chart-bar"></i> Real-time Results</h5>
+                    <p class="card-text">View election results in real-time with beautiful and interactive visualizations.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-mobile-alt"></i> Mobile Friendly</h5>
+                    <p class="card-text">Vote from anywhere using our mobile-responsive interface designed for all devices.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

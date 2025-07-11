@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ election.title }} - Votely{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card election-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">{{ election.title }}</h3>
+                    <span class="badge election-status status-{{ election.status|lower }}">
+                        {{ election.status }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{{ election.description }}</p>
+                    <div class="small text-muted mb-3">
+                        <div><i class="far fa-calendar-alt"></i> Start: {{ election.start_date|date:"M d, Y H:i" }}</div>
+                        <div><i class="far fa-calendar-check"></i> End: {{ election.end_date|date:"M d, Y H:i" }}</div>
+                        <div><i class="far fa-user"></i> Created by: {{ election.created_by.get_full_name }}</div>
+                    </div>
+                </div>
+                {% if user.is_staff %}
+                    <div class="card-footer">
+                        <div class="btn-group">
+                            <a href="{% url 'election_edit' pk=election.pk %}" class="btn btn-outline-primary">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <a href="{% url 'election_delete' pk=election.pk %}" class="btn btn-outline-danger">
+                                <i class="fas fa-trash"></i> Delete
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if candidates %}
+                <h4 class="mb-3">Candidates</h4>
+                <div class="row">
+                    {% for candidate in candidates %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                {% if candidate.photo %}
+                                    <img src="{{ candidate.photo.url }}" class="card-img-top" alt="{{ candidate.name }}">
+                                {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ candidate.name }}</h5>
+                                    <p class="card-text">{{ candidate.bio }}</p>
+                                    {% if user.is_staff %}
+                                        <div class="btn-group">
+                                            <a href="{% url 'candidate_edit' pk=candidate.pk %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            <a href="{% url 'candidate_delete' pk=candidate.pk %}" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">No candidates have been added to this election yet.</div>
+            {% endif %}
+
+            {% if user.is_staff %}
+                <div class="mb-4">
+                    <a href="{% url 'candidate_create' election_pk=election.pk %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Candidate
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            {% if election.is_active and not user_has_voted and not user.is_staff %}
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Cast Your Vote</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ form|crispy }}
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Submit Vote</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if election.end_date < now or user.is_staff %}
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="resultsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if election.end_date < now or user_has_voted or user.is_staff %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fetchUrl = "{% url 'election_results' pk=election.pk %}?is_ajax=true";
+    console.log('Fetching URL from election_detail:', fetchUrl);
+
+    fetch(fetchUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const ctx = document.getElementById('resultsChart').getContext('2d');
+            createBarChart(ctx, data.labels, data.votes, 'Vote Count');
+        })
+        .catch(error => console.error('Error loading election results in detail view:', error));
+});
+</script>
+{% endif %}
+{% endblock %} 

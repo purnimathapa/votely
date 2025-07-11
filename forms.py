@@ -1,62 +1,77 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.contrib.auth.models import User
-from django.contrib.auth.password_validation import validate_password
+from .models import Election, Candidate, Vote
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
-class CustomUserCreationForm(UserCreationForm):
-    email = forms.EmailField(required=True)
-    first_name = forms.CharField(required=True)
-    last_name = forms.CharField(required=True)
-    
-    password1 = forms.CharField(
-        label="Password",
-        strip=False,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        help_text="Your password must contain at least 8 characters and can't be entirely numeric."
-    )
-    
-    password2 = forms.CharField(
-        label="Confirm Password",
-        strip=False,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        help_text="Enter the same password as before, for verification."
-    )
-
+class ElectionForm(forms.ModelForm):
     class Meta:
-        model = User
-        fields = ('username', 'email', 'first_name', 'last_name', 'password1', 'password2')
+        model = Election
+        fields = ['title', 'description', 'start_date', 'end_date']
+        widgets = {
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({'class': 'form-control'})
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
         
-        # Customize error messages
-        self.fields['username'].error_messages.update({
-            'unique': 'This username is already taken.',
-            'invalid': 'Username may only contain letters, numbers, and @/./+/-/_ characters.'
-        })
+        if start_date and end_date:
+            if start_date >= end_date:
+                raise ValidationError("End date must be after start date.")
+            
+            if start_date < timezone.now():
+                raise ValidationError("Start date cannot be in the past.")
 
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
-            raise ValidationError("A user with this email already exists.")
-        return email
+class CandidateForm(forms.ModelForm):
+    class Meta:
+        model = Candidate
+        fields = ['name', 'bio', 'photo']
+        widgets = {
+            'bio': forms.Textarea(attrs={'rows': 4}),
+        }
 
-    def clean_password2(self):
-        password1 = self.cleaned_data.get('password1')
-        password2 = self.cleaned_data.get('password2')
-        if password1 and password2 and password1 != password2:
-            raise ValidationError("The two password fields didn't match.")
-        try:
-            validate_password(password2)
-        except ValidationError as e:
-            raise ValidationError(e.messages)
-        return password2
+class VoteForm(forms.ModelForm):
+    class Meta:
+        model = Vote
+        fields = ['candidate']
+        widgets = {
+            'candidate': forms.RadioSelect()
+        }
 
-class CustomAuthenticationForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
+        self.election = kwargs.pop('election', None)
+        self.voter = kwargs.pop('voter', None)
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({'class': 'form-control'}) 
+        if self.election:
+            self.fields['candidate'].queryset = Candidate.objects.filter(election=self.election)
+            self.fields['candidate'].empty_label = None
+            self.fields['candidate'].label = 'Select a candidate'
+        else:
+            self.fields['candidate'].queryset = Candidate.objects.none()
+
+    def clean_candidate(self):
+        candidate = self.cleaned_data.get('candidate')
+        if candidate and self.election:
+            if candidate.election != self.election:
+                raise forms.ValidationError("Invalid candidate for this election.")
+        return candidate
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.election:
+            self.instance.election = self.election
+        if self.voter:
+            self.instance.voter = self.voter
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.election:
+            instance.election = self.election
+        if self.voter:
+            instance.voter = self.voter
+        if commit:
+            instance.save()
+        return instance 
